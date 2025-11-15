@@ -12,8 +12,8 @@ const Utils = {
   getUriPath(uri, base) {
     base = base || '';
     const parse = url.parse(uri);
-
-    return path.relative('.', path.join(base, parse.pathname));
+    // Use only pathname without query parameters
+    return path.relative('.', path.join(base, path.basename(parse.pathname)));
   },
   isAbsolute(uri) {
     const parsed = url.parse(uri);

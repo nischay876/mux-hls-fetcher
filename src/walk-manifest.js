@@ -21,10 +21,9 @@ const fsSanitize = function(filepath) {
 
 const urlBasename = function(uri) {
   const parsed = url.parse(uri);
-  const pathname = parsed.pathname || parsed.path.replace(parsed.query || '', '');
-  const query = (parsed.query || '').split(/\\\\|\\|\//).join('');
-  const basename = path.basename(pathname) + query;
-
+  const pathname = parsed.pathname || parsed.path.split('?')[0];
+  const basename = path.basename(pathname);
+  
   return fsSanitize(basename);
 };
 
@@ -132,6 +131,17 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
     const key = manifest.parsed.segments[0].key;
 
     let keyUri = key.uri;
+    
+    // Strip query parameters for cleaner local storage
+    const parsedKeyUri = url.parse(keyUri);
+    if (parsedKeyUri.pathname) {
+      const cleanKeyUri = url.format({
+        protocol: parsedKeyUri.protocol,
+        host: parsedKeyUri.host,
+        pathname: parsedKeyUri.pathname
+      });
+      keyUri = cleanKeyUri;
+    }
 
     // if we are not decrypting then we just download the key
     if (!decrypt) {
@@ -140,7 +150,7 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
       if (parent) {
         key.file = path.dirname(parent.file);
       }
-      key.file = path.join(key.file, urlBasename(key.uri));
+      key.file = path.join(key.file, urlBasename(keyUri));
 
       manifest.content = Buffer.from(manifest.content.toString().replace(
         key.uri,
@@ -325,8 +335,20 @@ const walkPlaylist = function(options) {
           if (!s.uri) {
             return;
           }
+          
+          // Strip query parameters for clean local filename
+          const parsedSegmentUri = url.parse(s.uri);
+          let cleanSegmentUri = s.uri;
+          if (parsedSegmentUri.pathname) {
+            cleanSegmentUri = url.format({
+              protocol: parsedSegmentUri.protocol,
+              host: parsedSegmentUri.host,
+              pathname: parsedSegmentUri.pathname
+            });
+          }
+          
           // put segments in manifest-name/segment-name.ts
-          s.file = path.join(path.dirname(manifest.file), urlBasename(s.uri));
+          s.file = path.join(path.dirname(manifest.file), urlBasename(cleanSegmentUri));
 
           if (manifest.content) {
             manifest.content = Buffer.from(manifest.content.toString().replace(
@@ -350,6 +372,20 @@ const walkPlaylist = function(options) {
           if (!p.uri && !dash) {
             return Promise.resolve(resources);
           }
+          
+          // Strip query parameters for clean playlist URI
+          let cleanPlaylistUri = p.uri;
+          if (p.uri) {
+            const parsedPlaylistUri = url.parse(p.uri);
+            if (parsedPlaylistUri.pathname) {
+              cleanPlaylistUri = url.format({
+                protocol: parsedPlaylistUri.protocol,
+                host: parsedPlaylistUri.host,
+                pathname: parsedPlaylistUri.pathname
+              });
+            }
+          }
+          
           return walkPlaylist({
             dashPlaylist: dash ? p : null,
             decrypt,
