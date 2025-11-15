@@ -2,12 +2,12 @@
   "name": "mux-hls-fetcher",
   "version": "3.0.0",
   "description": "Fetch HLS segments from an m3u8 playlist - Optimized for Mux streams",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "mux-hls-fetcher": "./cli.js"
+    "mux-hls-fetcher": "./src/cli.js"
   },
   "repository": {
     "type": "git",
