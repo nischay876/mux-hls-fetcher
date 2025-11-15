@@ -1,11 +1,21 @@
 /* eslint-disable no-console */
 const m3u8 = require('m3u8-parser');
 const mpd = require('mpd-parser');
-const request = require('requestretry');
+const axios = require('axios');
+const axiosRetry = require('axios-retry').default;
 const url = require('url');
 const path = require('path');
 const querystring = require('querystring');
 const filenamify = require('filenamify');
+
+// Configure axios retry
+axiosRetry(axios, { 
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNABORTED';
+  }
+});
 
 // replace invalid http/fs characters with valid representations
 const fsSanitize = function(filepath) {
@@ -15,7 +25,7 @@ const fsSanitize = function(filepath) {
     // max filepath is 255 on OSX/linux, and 260 on windows, 255 is fine for both
     // replace invalid characters with nothing
     .map((p) => filenamify(querystring.unescape(p), {replacement: '', maxLength: 255}))
-    // join on OS specific path seperator
+    // join on OS specific path separator
     .join(path.sep);
 };
 
@@ -165,43 +175,43 @@ const parseKey = function(requestOptions, basedir, decrypt, resources, manifest,
       return resolve(key);
     }
 
-    requestOptions.url = keyUri;
-    requestOptions.encoding = null;
+    // get the aes key using axios
+    axios({
+      url: keyUri,
+      method: 'GET',
+      responseType: 'arraybuffer',
+      timeout: requestOptions.time || 15000
+    })
+    .then(function(response) {
+      if (response.status !== 200) {
+        const keyError = new Error(response.status + '|' + keyUri);
+        console.error(keyError);
+        return reject(keyError);
+      }
 
-    // get the aes key
-    request(requestOptions)
-      .then(function(response) {
-        if (response.statusCode !== 200) {
-          const keyError = new Error(response.statusCode + '|' + keyUri);
+      const keyContent = Buffer.from(response.data);
 
-          console.error(keyError);
-          return reject(keyError);
-        }
+      key.bytes = new Uint32Array([
+        keyContent.readUInt32BE(0),
+        keyContent.readUInt32BE(4),
+        keyContent.readUInt32BE(8),
+        keyContent.readUInt32BE(12)
+      ]);
 
-        const keyContent = response.body;
+      // remove the key from the manifest
+      manifest.content = Buffer.from(manifest.content.toString().replace(
+        new RegExp('.*' + key.uri + '.*'),
+        ''
+      ));
 
-        key.bytes = new Uint32Array([
-          keyContent.readUInt32BE(0),
-          keyContent.readUInt32BE(4),
-          keyContent.readUInt32BE(8),
-          keyContent.readUInt32BE(12)
-        ]);
-
-        // remove the key from the manifest
-        manifest.content = Buffer.from(manifest.content.toString().replace(
-          new RegExp('.*' + key.uri + '.*'),
-          ''
-        ));
-
-        resolve(key);
-      })
-      .catch(function(err) {
-        // TODO: do we even care about key errors; currently we just keep going and ignore them.
-        const keyError = new Error(err.message + '|' + keyUri);
-
-        console.error(keyError, err);
-        reject(keyError);
-      });
+      resolve(key);
+    })
+    .catch(function(err) {
+      // TODO: do we even care about key errors; currently we just keep going and ignore them.
+      const keyError = new Error(err.message + '|' + keyUri);
+      console.error(keyError, err);
+      reject(keyError);
+    });
   });
 };
 
@@ -223,10 +233,10 @@ const walkPlaylist = function(options) {
         }
       },
       visitedUrls = [],
-      requestTimeout = 1500,
-      requestRetryMaxAttempts = 3, // Reduced retries for speed
+      requestTimeout = 15000,
+      requestRetryMaxAttempts = 3,
       dashPlaylist = null,
-      requestRetryDelay = 1000 // Reduced delay for speed
+      requestRetryDelay = 1000
     } = options;
 
     let resources = [];
@@ -275,21 +285,21 @@ const walkPlaylist = function(options) {
     let requestPromise;
 
     if (dashPlaylist) {
-      requestPromise = Promise.resolve({statusCode: 200});
+      requestPromise = Promise.resolve({status: 200});
     } else {
-      requestPromise = request({
+      requestPromise = axios({
         url: manifest.uri,
+        method: 'GET',
         timeout: requestTimeout,
-        maxAttempts: requestRetryMaxAttempts,
-        retryDelay: requestRetryDelay
+        responseType: 'text'
       });
     }
 
     requestPromise.then(function(response) {
-      if (response.statusCode !== 200) {
-        const manifestError = new Error(response.statusCode + '|' + manifest.uri);
+      if (response.status !== 200) {
+        const manifestError = new Error(response.status + '|' + manifest.uri);
 
-        manifestError.reponse = {body: response.body, headers: response.headers};
+        manifestError.response = {data: response.data, headers: response.headers};
         return onError(manifestError, manifest.uri, resources, resolve, reject);
       }
       // Only push manifest uris that get a non 200 and don't timeout
@@ -298,8 +308,8 @@ const walkPlaylist = function(options) {
       if (!dashPlaylist) {
         resources.push(manifest);
 
-        manifest.content = response.body;
-        if ((/^application\/dash\+xml/i).test(response.headers['content-type']) || (/^\<\?xml/i).test(response.body)) {
+        manifest.content = response.data;
+        if ((/^application\/dash\+xml/i).test(response.headers['content-type']) || (/^\<\?xml/i).test(response.data)) {
           dash = true;
           manifest.parsed = parseMpdManifest(manifest.content, manifest.uri);
         } else {

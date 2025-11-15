@@ -1,92 +1,53 @@
 {
-  "name": "hls-fetcher",
-  "version": "2.3.0",
-  "description": "Fetch HLS segments from an m3u8 playlist",
-  "main": "src/index.js",
+  "name": "mux-hls-fetcher",
+  "version": "3.0.0",
+  "description": "Fetch HLS segments from an m3u8 playlist - Optimized for Mux streams",
+  "main": "index.js",
   "scripts": {
-    "docs:toc": "doctoc README.md",
-    "lint": "vjsstandard",
-    "pretest": "npm run lint",
-    "start": "npm run test -- --watch",
-    "test": "NODE_ENV=test mocha test/unit",
-    "update-changelog": "conventional-changelog -p videojs -i CHANGELOG.md -s",
-    "preversion": "npm test",
-    "version": "is-prerelease || npm run update-changelog && git add CHANGELOG.md",
-    "prepublishOnly": "vjsverify --skip-es-check"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "hls-fetcher": "./src/cli.js"
+    "mux-hls-fetcher": "./cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/videojs/hls-fetcher.git"
+    "url": "git+https://github.com/nischay876/mux-hls-fetcher.git"
   },
-  "contributors": [
-    "Jon-Carlos Rivera <jon.carlos.rivera@gmail.com> (http://jon-carlos.com/)",
-    "Brandon Casey <brandonocasey@gmail.com> (https://github.com/brandonocasey)"
-  ],
+  "author": "Nischay Singh <nischay876@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/videojs/hls-fetcher/issues"
+    "url": "https://github.com/nischay876/mux-hls-fetcher/issues"
   },
-  "homepage": "https://github.com/videojs/hls-fetcher#readme",
+  "homepage": "https://github.com/nischay876/mux-hls-fetcher#readme",
+  "keywords": [
+    "hls",
+    "m3u8",
+    "mux",
+    "video",
+    "streaming",
+    "downloader"
+  ],
   "dependencies": {
     "aes-decrypter": "^3.1.2",
     "bluebird": "^3.7.2",
     "filenamify": "^4.3.0",
-    "m3u8-parser": "^4.7.0",
-    "mkdirp": "^1.0.4",
-    "mpd-parser": "^0.16.0",
-    "pessimist": "^0.3.5",
-    "request": "^2.87.0",
-    "requestretry": "^5.0.0"
-  },
-  "devDependencies": {
-    "conventional-changelog-cli": "^2.1.1",
-    "conventional-changelog-videojs": "^3.0.0",
-    "doctoc": "^2.0.0",
-    "husky": "^6.0.0",
-    "lint-staged": "^11.0.0",
-    "mocha": "^8.4.0",
-    "nock": "^13.0.11",
-    "not-prerelease": "^1.0.1",
-    "npm-merge-driver-install": "^2.0.1",
-    "videojs-generator-verify": "~3.0.3",
-    "videojs-standard": "^8.0.4"
-  },
-  "generator-videojs-plugin": {
-    "version": "7.3.2"
-  },
-  "browserslist": [
-    "defaults",
-    "ie 11"
-  ],
-  "vjsstandard": {
-    "ignore": [
-      "dist",
-      "docs",
-      "test/dist"
-    ]
+    "m3u8-parser": "^7.1.0",
+    "mkdirp": "^3.0.1",
+    "mpd-parser": "^1.2.0",
+    "axios": "^1.6.0",
+    "axios-retry": "^3.9.1",
+    "yargs": "^17.7.2"
   },
   "files": [
-    "CONTRIBUTING.md",
-    "docs/",
-    "src/",
-    "test/"
+    "cli.js",
+    "index.js",
+    "walk-manifest.js",
+    "write-data.js",
+    "utils.js",
+    "README.md",
+    "LICENSE"
   ],
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "*.js": [
-      "vjsstandard --fix",
-      "git add"
-    ],
-    "README.md": [
-      "npm run docs:toc",
-      "git add"
-    ]
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

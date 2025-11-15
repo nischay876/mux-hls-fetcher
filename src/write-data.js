@@ -1,10 +1,22 @@
 /* eslint-disable no-console */
 const Promise = require('bluebird');
 const mkdirp = require('mkdirp');
-const request = require('requestretry');
+const axios = require('axios');
+const axiosRetry = require('axios-retry').default;
 const fs = Promise.promisifyAll(require('fs'));
 const AesDecrypter = require('aes-decrypter').Decrypter;
 const path = require('path');
+
+// Configure axios retry
+axiosRetry(axios, { 
+  retries: 3,
+  retryDelay: (retryCount) => {
+    return retryCount * 500;
+  },
+  retryCondition: (error) => {
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNABORTED';
+  }
+});
 
 const writeFile = function(file, content) {
   return mkdirp(path.dirname(file)).then(function() {
@@ -15,24 +27,13 @@ const writeFile = function(file, content) {
 };
 
 const requestFile = function(uri) {
-  const options = {
-    uri,
-    // Reduced timeout for better responsiveness
-    timeout: 30000,
-    // treat all responses as a buffer
-    encoding: null,
-    // retry quickly
-    retryDelay: 500,
-    maxAttempts: 3
-  };
-
-  return new Promise(function(resolve, reject) {
-    request(options, function(err, response, body) {
-      if (err) {
-        return reject(err);
-      }
-      return resolve(body);
-    });
+  return axios({
+    url: uri,
+    method: 'GET',
+    responseType: 'arraybuffer',
+    timeout: 30000
+  }).then(function(response) {
+    return Buffer.from(response.data);
   });
 };
 

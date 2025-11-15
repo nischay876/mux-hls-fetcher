@@ -3,37 +3,53 @@
 
 const path = require('path');
 const start = require('./index');
-const pessimist = require('pessimist')
-  .usage('Fetch and save the contents of an HLS playlist locally.\nUsage: $0 ')
-  .alias('i', 'input')
-  .demand('i')
-  .describe('i', 'uri to m3u8 (required)')
-  .alias('o', 'output')
-  .default('o', './hls-fetcher')
-  .describe('o', "output path (default:'./hls-fetcher')")
-  .alias('c', 'concurrency')
-  .default('c', 10) // Increased default concurrency
-  .describe('c', 'number of simultaneous fetches (default: 10)')
-  .alias('d', 'decrypt')
-  .default('d', false)
-  .describe('d', 'decrypt and remove enryption from manifest (default: false)')
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+
+const argv = yargs(hideBin(process.argv))
+  .usage('Fetch and save the contents of an HLS playlist locally.\nUsage: $0')
+  .option('input', {
+    alias: 'i',
+    describe: 'uri to m3u8 (required)',
+    type: 'string',
+    demandOption: true
+  })
+  .option('output', {
+    alias: 'o',
+    describe: "output path (default:'./hls-fetcher')",
+    type: 'string',
+    default: './hls-fetcher'
+  })
+  .option('concurrency', {
+    alias: 'c',
+    describe: 'number of simultaneous fetches (default: 10)',
+    type: 'number',
+    default: 10
+  })
+  .option('decrypt', {
+    alias: 'd',
+    describe: 'decrypt and remove encryption from manifest (default: false)',
+    type: 'boolean',
+    default: false
+  })
+  .help()
   .argv;
 
 // Make output path
-const output = path.resolve(pessimist.o);
+const output = path.resolve(argv.output);
 const startTime = Date.now();
 const options = {
-  input: pessimist.i,
+  input: argv.input,
   output,
-  concurrency: parseInt(pessimist.c),
-  decrypt: pessimist.d
+  concurrency: argv.concurrency,
+  decrypt: argv.decrypt
 };
 
-console.log(`Starting HLS fetcher...`);
-console.log(`Input: ${pessimist.i}`);
-console.log(`Output: ${output}`);
-console.log(`Concurrency: ${options.concurrency}`);
-console.log(`Decrypt: ${options.decrypt}`);
+console.log(`🚀 Starting Mux HLS fetcher...`);
+console.log(`📥 Input: ${argv.input}`);
+console.log(`📁 Output: ${output}`);
+console.log(`⚡ Concurrency: ${options.concurrency}`);
+console.log(`🔐 Decrypt: ${options.decrypt}`);
 
 start(options).then(function() {
   const timeTaken = ((Date.now() - startTime) / 1000).toFixed(2);
