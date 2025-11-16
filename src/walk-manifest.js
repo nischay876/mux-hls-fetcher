@@ -260,17 +260,12 @@ const walkPlaylist = function(options) {
       manifest.uri = parent.uri;
       existingManifest = visitedUrls[manifest.uri];
     } else if (parent) {
-      // For the root manifest, ensure it's named master.m3u8
-      if (!parent.parent) {
-        manifest.file = path.join(basedir, 'master.m3u8');
-      } else {
-        manifest.file = path.join(
-          basedir,
-          path.dirname(path.relative(basedir, parent.file)),
-          'manifest' + manifestIndex,
-          path.basename(manifest.file)
-        );
-      }
+      manifest.file = path.join(
+        basedir,
+        path.dirname(path.relative(basedir, parent.file)),
+        'manifest' + manifestIndex,
+        path.basename(manifest.file)
+      );
 
       const file = existingManifest && existingManifest.file || manifest.file;
       const relativePath = path.relative(path.dirname(parent.file), file);
@@ -284,6 +279,9 @@ const walkPlaylist = function(options) {
       }
 
       existingManifest = visitedUrls[manifest.uri];
+    } else if (!parent) {
+      // This is the root manifest - ensure it's named master.m3u8
+      manifest.file = path.join(basedir, 'master.m3u8');
     }
 
     if (!dashPlaylist && existingManifest) {
