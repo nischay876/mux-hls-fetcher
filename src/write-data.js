@@ -53,7 +53,34 @@ const decryptFile = function(content, encryption) {
   });
 };
 
-const WriteData = function(decrypt, concurrency, resources) {
+const renameRootManifest = async function(resources, outputPath) {
+  // Find the resource that is likely the root manifest (no parent and has content)
+  const rootResources = resources.filter(r => 
+    r.file && 
+    !r.parent && 
+    path.basename(r.file) !== 'master.m3u8' &&
+    (r.content || r.uri)
+  );
+  
+  for (const rootResource of rootResources) {
+    const oldPath = rootResource.file;
+    const newPath = path.join(path.dirname(oldPath), 'master.m3u8');
+    
+    // Check if file exists before trying to rename
+    try {
+      if (fs.existsSync(oldPath)) {
+        await fs.renameAsync(oldPath, newPath);
+        rootResource.file = newPath;
+        console.log(`🔄 Renamed root manifest to: master.m3u8`);
+        break; // Only rename the first one found
+      }
+    } catch (err) {
+      console.warn(`⚠️  Could not rename root manifest: ${err.message}`);
+    }
+  }
+};
+
+const WriteData = function(decrypt, concurrency, resources, outputPath) {
   const inProgress = [];
   const operations = [];
   let completed = 0;
@@ -98,7 +125,12 @@ const WriteData = function(decrypt, concurrency, resources) {
 
   return Promise.map(operations, function(o) {
     return o();
-  }, {concurrency}).then(function() {
+  }, {concurrency}).then(async function() {
+    // Rename root manifest to master.m3u8 after all downloads complete
+    if (outputPath) {
+      await renameRootManifest(resources, outputPath);
+    }
+    
     console.log(`🎉 Download completed! Successfully processed ${total} resources.`);
     return Promise.resolve();
   }).catch(function(error) {

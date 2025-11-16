@@ -10,7 +10,7 @@ const main = function(options) {
     .then(function(resources) {
       console.log(`📥 Found ${resources.length} resources to download`);
       console.log('💾 Downloading additional data...');
-      return WriteData(options.decrypt, options.concurrency, resources);
+      return WriteData(options.decrypt, options.concurrency, resources, options.output);
     });
 };
 
