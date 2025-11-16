@@ -9,7 +9,7 @@ const querystring = require('querystring');
 const filenamify = require('filenamify');
 
 // Configure axios retry
-axiosRetry(axios, {
+axiosRetry(axios, { 
   retries: 3,
   retryDelay: axiosRetry.exponentialDelay,
   retryCondition: (error) => {
@@ -18,26 +18,26 @@ axiosRetry(axios, {
 });
 
 // replace invalid http/fs characters with valid representations
-const fsSanitize = function (filepath) {
+const fsSanitize = function(filepath) {
   return path.normalize(filepath)
     // split on \, \\, or /
     .split(/\\\\|\\|\//)
     // max filepath is 255 on OSX/linux, and 260 on windows, 255 is fine for both
     // replace invalid characters with nothing
-    .map((p) => filenamify(querystring.unescape(p), { replacement: '', maxLength: 255 }))
+    .map((p) => filenamify(querystring.unescape(p), {replacement: '', maxLength: 255}))
     // join on OS specific path separator
     .join(path.sep);
 };
 
-const urlBasename = function (uri) {
+const urlBasename = function(uri) {
   const parsed = url.parse(uri);
   const pathname = parsed.pathname || parsed.path.split('?')[0];
   const basename = path.basename(pathname);
-
+  
   return fsSanitize(basename);
 };
 
-const joinURI = function (absolute, relative) {
+const joinURI = function(absolute, relative) {
   const abs = url.parse(absolute);
   const rel = url.parse(relative);
 
@@ -49,7 +49,7 @@ const joinURI = function (absolute, relative) {
   return url.format(abs);
 };
 
-const isAbsolute = function (uri) {
+const isAbsolute = function(uri) {
   const parsed = url.parse(uri);
 
   if (parsed.protocol) {
@@ -58,10 +58,10 @@ const isAbsolute = function (uri) {
   return false;
 };
 
-const mediaGroupPlaylists = function (mediaGroups) {
+const mediaGroupPlaylists = function(mediaGroups) {
   const playlists = [];
 
-  ['AUDIO', 'VIDEO', 'CLOSED-CAPTIONS', 'SUBTITLES'].forEach(function (type) {
+  ['AUDIO', 'VIDEO', 'CLOSED-CAPTIONS', 'SUBTITLES'].forEach(function(type) {
     const mediaGroupType = mediaGroups[type];
 
     if (mediaGroupType && !Object.keys(mediaGroupType).length) {
@@ -79,7 +79,7 @@ const mediaGroupPlaylists = function (mediaGroups) {
   return playlists;
 };
 
-const parseM3u8Manifest = function (content) {
+const parseM3u8Manifest = function(content) {
   const parser = new m3u8.Parser();
 
   parser.push(content);
@@ -87,11 +87,11 @@ const parseM3u8Manifest = function (content) {
   return parser.manifest;
 };
 
-const collectPlaylists = function (parsed) {
+const collectPlaylists = function(parsed) {
   return []
     .concat(parsed.playlists || [])
     .concat(mediaGroupPlaylists(parsed.mediaGroups || {}) || [])
-    .reduce(function (acc, p) {
+    .reduce(function(acc, p) {
       acc.push(p);
 
       if (p.playlists) {
@@ -101,7 +101,7 @@ const collectPlaylists = function (parsed) {
     }, []);
 };
 
-const parseMpdManifest = function (content, srcUrl) {
+const parseMpdManifest = function(content, srcUrl) {
   const parsedManifestInfo = mpd.inheritAttributes(mpd.stringToMpdXml(content), {
     manifestUri: srcUrl
   });
@@ -110,8 +110,8 @@ const parseMpdManifest = function (content, srcUrl) {
   const m3u8Result = mpd.toM3u8(mpdPlaylists);
   const m3u8Playlists = collectPlaylists(m3u8Result);
 
-  m3u8Playlists.forEach(function (m) {
-    const mpdPlaylist = m.attributes && mpdPlaylists.find(function (p) {
+  m3u8Playlists.forEach(function(m) {
+    const mpdPlaylist = m.attributes && mpdPlaylists.find(function(p) {
       return p.attributes.id === m.attributes.NAME;
     });
 
@@ -132,8 +132,8 @@ const parseMpdManifest = function (content, srcUrl) {
   return m3u8Result;
 };
 
-const parseKey = function (requestOptions, basedir, decrypt, resources, manifest, parent) {
-  return new Promise(function (resolve, reject) {
+const parseKey = function(requestOptions, basedir, decrypt, resources, manifest, parent) {
+  return new Promise(function(resolve, reject) {
 
     if (!manifest.parsed.segments[0] || !manifest.parsed.segments[0].key) {
       return resolve({});
@@ -141,7 +141,7 @@ const parseKey = function (requestOptions, basedir, decrypt, resources, manifest
     const key = manifest.parsed.segments[0].key;
 
     let keyUri = key.uri;
-
+    
     // Strip query parameters for cleaner local storage
     const parsedKeyUri = url.parse(keyUri);
     if (parsedKeyUri.pathname) {
@@ -182,41 +182,41 @@ const parseKey = function (requestOptions, basedir, decrypt, resources, manifest
       responseType: 'arraybuffer',
       timeout: requestOptions.time || 15000
     })
-      .then(function (response) {
-        if (response.status !== 200) {
-          const keyError = new Error(response.status + '|' + keyUri);
-          console.error(keyError);
-          return reject(keyError);
-        }
+    .then(function(response) {
+      if (response.status !== 200) {
+        const keyError = new Error(response.status + '|' + keyUri);
+        console.error(keyError);
+        return reject(keyError);
+      }
 
-        const keyContent = Buffer.from(response.data);
+      const keyContent = Buffer.from(response.data);
 
-        key.bytes = new Uint32Array([
-          keyContent.readUInt32BE(0),
-          keyContent.readUInt32BE(4),
-          keyContent.readUInt32BE(8),
-          keyContent.readUInt32BE(12)
-        ]);
+      key.bytes = new Uint32Array([
+        keyContent.readUInt32BE(0),
+        keyContent.readUInt32BE(4),
+        keyContent.readUInt32BE(8),
+        keyContent.readUInt32BE(12)
+      ]);
 
-        // remove the key from the manifest
-        manifest.content = Buffer.from(manifest.content.toString().replace(
-          new RegExp('.*' + key.uri + '.*'),
-          ''
-        ));
+      // remove the key from the manifest
+      manifest.content = Buffer.from(manifest.content.toString().replace(
+        new RegExp('.*' + key.uri + '.*'),
+        ''
+      ));
 
-        resolve(key);
-      })
-      .catch(function (err) {
-        // TODO: do we even care about key errors; currently we just keep going and ignore them.
-        const keyError = new Error(err.message + '|' + keyUri);
-        console.error(keyError, err);
-        reject(keyError);
-      });
+      resolve(key);
+    })
+    .catch(function(err) {
+      // TODO: do we even care about key errors; currently we just keep going and ignore them.
+      const keyError = new Error(err.message + '|' + keyUri);
+      console.error(keyError, err);
+      reject(keyError);
+    });
   });
 };
 
-const walkPlaylist = function (options) {
-  return new Promise(function (resolve, reject) {
+const walkPlaylist = function(options) {
+  return new Promise(function(resolve, reject) {
 
     const {
       decrypt,
@@ -224,7 +224,7 @@ const walkPlaylist = function (options) {
       uri,
       parent = false,
       manifestIndex = 0,
-      onError = function (err, errUri, resources, res, rej) {
+      onError = function(err, errUri, resources, res, rej) {
         // Avoid adding the top level uri to nested errors
         if (err.message.includes('|')) {
           rej(err);
@@ -240,11 +240,11 @@ const walkPlaylist = function (options) {
     } = options;
 
     let resources = [];
-    const manifest = { parent };
+    const manifest = {parent};
 
     if (uri) {
       manifest.uri = uri;
-      // For the root manifest (no parent), name it master.m3u8
+      // Name root manifest as master.m3u8
       if (!parent) {
         manifest.file = path.join(basedir, 'master.m3u8');
       } else {
@@ -261,7 +261,7 @@ const walkPlaylist = function (options) {
       existingManifest = visitedUrls[manifest.uri];
     } else if (parent) {
       // For the root manifest, ensure it's named master.m3u8
-      if (!parent) {
+      if (!parent.parent) {
         manifest.file = path.join(basedir, 'master.m3u8');
       } else {
         manifest.file = path.join(
@@ -271,7 +271,6 @@ const walkPlaylist = function (options) {
           path.basename(manifest.file)
         );
       }
-
 
       const file = existingManifest && existingManifest.file || manifest.file;
       const relativePath = path.relative(path.dirname(parent.file), file);
@@ -296,7 +295,7 @@ const walkPlaylist = function (options) {
     let requestPromise;
 
     if (dashPlaylist) {
-      requestPromise = Promise.resolve({ status: 200 });
+      requestPromise = Promise.resolve({status: 200});
     } else {
       requestPromise = axios({
         url: manifest.uri,
@@ -306,11 +305,11 @@ const walkPlaylist = function (options) {
       });
     }
 
-    requestPromise.then(function (response) {
+    requestPromise.then(function(response) {
       if (response.status !== 200) {
         const manifestError = new Error(response.status + '|' + manifest.uri);
 
-        manifestError.response = { data: response.data, headers: response.headers };
+        manifestError.response = {data: response.data, headers: response.headers};
         return onError(manifestError, manifest.uri, resources, resolve, reject);
       }
       // Only push manifest uris that get a non 200 and don't timeout
@@ -337,7 +336,7 @@ const walkPlaylist = function (options) {
 
       const initSegments = [];
 
-      manifest.parsed.segments.forEach(function (s) {
+      manifest.parsed.segments.forEach(function(s) {
         if (s.map && s.map.uri && !initSegments.some((m) => s.map.uri === m.uri)) {
           manifest.parsed.segments.push(s.map);
           initSegments.push(s.map);
@@ -350,13 +349,13 @@ const walkPlaylist = function (options) {
         time: requestTimeout,
         maxAttempts: requestRetryMaxAttempts,
         retryDelay: requestRetryDelay
-      }, basedir, decrypt, resources, manifest, parent).then(function (key) {
+      }, basedir, decrypt, resources, manifest, parent).then(function(key) {
         // SEGMENTS
-        manifest.parsed.segments.forEach(function (s, i) {
+        manifest.parsed.segments.forEach(function(s, i) {
           if (!s.uri) {
             return;
           }
-
+          
           // Strip query parameters for clean local filename
           const parsedSegmentUri = url.parse(s.uri);
           let cleanSegmentUri = s.uri;
@@ -367,7 +366,7 @@ const walkPlaylist = function (options) {
               pathname: parsedSegmentUri.pathname
             });
           }
-
+          
           // put segments in manifest-name/segment-name.ts
           s.file = path.join(path.dirname(manifest.file), urlBasename(cleanSegmentUri));
 
@@ -389,11 +388,11 @@ const walkPlaylist = function (options) {
         });
 
         // SUB Playlists
-        const subs = playlists.map(function (p, z) {
+        const subs = playlists.map(function(p, z) {
           if (!p.uri && !dash) {
             return Promise.resolve(resources);
           }
-
+          
           // Strip query parameters for clean playlist URI
           let cleanPlaylistUri = p.uri;
           if (p.uri) {
@@ -406,7 +405,7 @@ const walkPlaylist = function (options) {
               });
             }
           }
-
+          
           return walkPlaylist({
             dashPlaylist: dash ? p : null,
             decrypt,
@@ -422,17 +421,17 @@ const walkPlaylist = function (options) {
           });
         });
 
-        Promise.all(subs).then(function (r) {
+        Promise.all(subs).then(function(r) {
           const flatten = [].concat.apply([], r);
 
           resources = resources.concat(flatten);
           resolve(resources);
-        }).catch(function (err) {
+        }).catch(function(err) {
           onError(err, manifest.uri, resources, resolve, reject);
         });
       });
     })
-      .catch(function (err) {
+      .catch(function(err) {
         onError(err, manifest.uri, resources, resolve, reject);
       });
   });
